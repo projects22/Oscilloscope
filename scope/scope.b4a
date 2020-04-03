@@ -1,0 +1,122 @@
+﻿Build1=Default,b4a.GraphicsFirstSteps
+File1=main.bal
+FileGroup1=Default Group
+Group=Default Group
+Library1=core
+Library2=felusbserial
+Library3=usb
+ManifestCode='This code will be applied to the manifest file during compilation.~\n~'You do not need to modify it in most cases.~\n~'See this link for for more information: http://www.b4x.com/forum/showthread.php?p=78136~\n~AddManifestText(~\n~<uses-sdk android:minSdkVersion="5" android:targetSdkVersion="26"/>~\n~<supports-screens android:largeScreens="true" ~\n~    android:normalScreens="true" ~\n~    android:smallScreens="true" ~\n~    android:anyDensity="true"/>)~\n~SetApplicationAttribute(android:icon, "@drawable/icon")~\n~SetApplicationAttribute(android:label, "$LABEL$")~\n~'End of default text.~\n~
+NumberOfFiles=1
+NumberOfLibraries=3
+NumberOfModules=0
+Version=9.801
+@EndOfDesignText@
+#Region  Project Attributes 
+	#ApplicationLabel: Oscilloscope
+	#VersionCode: 1
+	#VersionName: 
+	'SupportedOrientations possible values: unspecified, landscape or portrait.
+	#SupportedOrientations: landscape
+	#CanInstallToExternalStorage: False
+#End Region
+
+#Region  Activity Attributes 
+	#FullScreen: False
+	#IncludeTitle: True
+#End Region
+
+'Activity module
+Sub Process_Globals
+	Private usbserial As felUsbSerial
+	Private manager As UsbManager
+End Sub
+
+Sub Globals
+	Private usbserial As felUsbSerial
+	Private manager As UsbManager
+	Private btnConnect As Button
+	Private pnlGraph As Panel
+	Private cvsActivity, cvsGraph As Canvas
+	Private btn2 As Button
+	Private btn1 As Button
+	Private Label1 As Label
+	Dim i, yp=210 As Int
+End Sub
+
+Sub Activity_Create(FirstTime As Boolean)
+	If FirstTime Then
+		manager.Initialize
+	End If
+	
+	Activity.LoadLayout("main")		' load the layout
+	cvsActivity.Initialize(Activity)	' initialize the Canvas for the activity
+	cvsGraph.Initialize(pnlGraph)	' initialize the Canvas for the panel
+		'draw grid
+	cvsGraph.DrawLine(0, 210, 600, 210, Colors.blue, 1dip)
+	cvsGraph.DrawLine(300, 0, 300, 420, Colors.blue, 1dip)
+	pnlGraph.Invalidate
+
+End Sub
+
+Sub btnConnect_Click
+	If manager.GetDevices.Length = 0 Then
+		Label1.Text = "No connected usb devices."
+	Else
+		Dim device As UsbDevice = manager.GetDevices(0) 'the device
+		If manager.HasPermission(device) = False Then
+			manager.RequestPermission(device)
+		Else
+			usbserial.Initialize("serial", device, -1)
+			usbserial.BaudRate = 38400
+			usbserial.DataBits = usbserial.DATA_BITS_8
+			usbserial.StartReading
+			Label1.Text = "Connected"
+		End If
+	End If
+End Sub
+
+Private Sub serial_DataAvailable (Buffer() As Byte)		'60 bytes received
+	Dim x1, y1, x2, y2, inB As Int	
+		
+	Private rect1 As Rect
+	rect1.Initialize(0, 0, 600dip, 420dip)
+			cvsGraph.DrawRect(rect1, Colors.Green, True, 3dip)		'refresh screen
+			cvsGraph.DrawLine(0, 210, 600, 210, Colors.blue, 1dip)
+			cvsGraph.DrawLine(300, 0, 300, 420, Colors.blue, 1dip)
+			pnlGraph.Invalidate
+			
+		'curve made out of 60 lines	
+	If Buffer.Length > 59 Then
+		yp=210
+	For i=0 To 59
+		inB=Buffer(i)
+		x1=i*10
+		x2=x1+10
+		y2=210-inB	
+		y1=yp
+		cvsGraph.DrawLine(x1, y1, x2, y2, Colors.Red, 3dip)
+		pnlGraph.Invalidate
+		yp=y2
+	Next
+	End If
+
+End Sub
+
+Sub Activity_Resume
+	
+End Sub
+
+Sub Activity_Pause (UserClosed As Boolean)
+
+End Sub
+
+Sub btn2_click		'send low freq flag byte
+	Dim wide As String ="1"
+	usbserial.Write(wide.GetBytes("UTF8"))
+End Sub
+
+Sub btn1_click		'higher freq flag byte
+	Dim wide As String ="2"
+	usbserial.Write(wide.GetBytes("UTF8"))
+End Sub
+
